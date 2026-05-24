@@ -65,15 +65,46 @@ def choose_udid(requested_udid: str | None) -> str:
     return devices[0]
 
 
-def ensure_google_one_installed(udid: str) -> None:
-    result = run_adb(["shell", "pm", "list", "packages", GOOGLE_ONE_PACKAGE], udid=udid)
+def is_package_installed(udid: str, package_name: str) -> bool:
+    result = run_adb(["shell", "pm", "list", "packages", package_name], udid=udid)
     if result.returncode != 0:
         raise RuntimeError(f"Failed to check installed packages: {result.stderr.strip()}")
-    if f"package:{GOOGLE_ONE_PACKAGE}" not in result.stdout:
+    return f"package:{package_name}" in result.stdout
+
+
+def install_apk(udid: str, apk_path: Path) -> None:
+    if not apk_path.is_file():
+        raise RuntimeError(f"APK not found: {apk_path}")
+
+    print(f"Installing APK: {apk_path}")
+    result = run_adb(["install", "-r", str(apk_path)], udid=udid)
+    output = "\n".join(part for part in [result.stdout.strip(), result.stderr.strip()] if part)
+    if result.returncode != 0:
+        raise RuntimeError(f"APK install failed:\n{output}")
+
+    if "Success" not in output:
+        print(f"adb install output:\n{output}", file=sys.stderr)
+
+
+def ensure_google_one_installed(udid: str, apk_path: Path | None = None) -> None:
+    if is_package_installed(udid, GOOGLE_ONE_PACKAGE):
+        return
+
+    if apk_path:
+        install_apk(udid, apk_path)
+        if is_package_installed(udid, GOOGLE_ONE_PACKAGE):
+            return
         raise RuntimeError(
-            f"Google One is not installed on {udid}. Install it first, then rerun this script.\n"
-            f"Expected package: {GOOGLE_ONE_PACKAGE}"
+            f"APK installed, but {GOOGLE_ONE_PACKAGE} is still not visible on {udid}."
         )
+
+    result = run_adb(["shell", "pm", "list", "packages", GOOGLE_ONE_PACKAGE], udid=udid)
+    raise RuntimeError(
+        f"Google One is not installed on {udid}.\n"
+        f"Expected package: {GOOGLE_ONE_PACKAGE}\n"
+        f"Install it manually, or rerun with: --google-one-apk /path/to/google-one.apk\n"
+        f"adb output: {result.stdout.strip() or result.stderr.strip() or '(empty)'}"
+    )
 
 
 def create_driver(server_url: str, udid: str, device_name: str):
@@ -118,6 +149,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip the ADB check for the Google One package before starting Appium.",
     )
+    parser.add_argument(
+        "--google-one-apk",
+        type=Path,
+        help=(
+            "Path to a Google One APK. If the package is missing, the script installs "
+            "this APK with `adb install -r` before starting Appium."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -127,7 +166,7 @@ def main() -> int:
     try:
         udid = choose_udid(args.udid)
         if not args.skip_install_check:
-            ensure_google_one_installed(udid)
+            ensure_google_one_installed(udid, args.google_one_apk)
 
         print(f"Using device: {udid}")
         print(f"Connecting to Appium: {args.appium_server}")
