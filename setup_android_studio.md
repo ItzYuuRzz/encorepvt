@@ -145,7 +145,16 @@ Tes buka manual via ADB:
 adb shell monkey -p com.google.android.apps.subscriptions.red -c android.intent.category.LAUNCHER 1
 ```
 
-Kalau package tidak muncul, install Google One dulu di emulator/device. `activate_app()` hanya membuka app yang sudah ada, bukan menginstall app.
+Kalau package tidak muncul, ada 2 fallback:
+
+1. Install Google One manual dari Play Store atau APK.
+2. Supply APK ke script agar di-install otomatis sebelum Appium mulai:
+
+```bash
+python script_android_studio.py --google-one-apk /path/to/google-one.apk
+```
+
+Script akan menjalankan `adb install -r /path/to/google-one.apk`, lalu mengecek lagi apakah package `com.google.android.apps.subscriptions.red` sudah muncul. `activate_app()` hanya membuka app yang sudah ada, bukan menginstall app.
 
 ## 5. Login akun Google
 
@@ -221,6 +230,14 @@ Kalau ingin melewati pengecekan package Google One:
 python script_android_studio.py --skip-install-check
 ```
 
+Catatan: `--skip-install-check` bukan fallback install. Flag itu hanya melewati pengecekan awal; kalau Google One memang tidak ada, proses tetap akan gagal saat `activate_app()` mencoba membuka package.
+
+Kalau Google One belum ada dan kamu punya file APK:
+
+```bash
+python script_android_studio.py --google-one-apk ./apk/google-one.apk
+```
+
 ## 9. Flow internal saat script berjalan
 
 `script_android_studio.py` melakukan ini:
@@ -233,22 +250,23 @@ python script_android_studio.py --skip-install-check
 com.google.android.apps.subscriptions.red
 ```
 
-4. Membuat Appium driver dengan UiAutomator2.
-5. Memanggil:
+4. Jika package belum ada dan `--google-one-apk` diberikan, script install APK via `adb install -r`.
+5. Membuat Appium driver dengan UiAutomator2.
+6. Memanggil:
 
 ```python
 automation = GoogleOneAutomation(driver)
 offer_link = automation.get_offer_link()
 ```
 
-6. `GoogleOneAutomation` membuka Google One:
+7. `GoogleOneAutomation` membuka Google One:
 
 ```python
 self.driver.activate_app(GOOGLE_ONE_PACKAGE)
 ```
 
-7. Script mencari offer link.
-8. Kalau berhasil, terminal menampilkan:
+8. Script mencari offer link.
+9. Kalau berhasil, terminal menampilkan:
 
 ```text
 OFFER LINK:
