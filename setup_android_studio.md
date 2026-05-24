@@ -53,6 +53,7 @@ Install di laptop/PC:
 - Python 3.11+
 - Node.js + npm
 - Appium 2
+- Tesseract OCR
 
 Install Appium:
 
@@ -61,12 +62,27 @@ npm install -g appium
 appium driver install uiautomator2
 ```
 
+Install Tesseract untuk fallback OCR:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr
+
+# macOS
+brew install tesseract
+
+# Windows PowerShell via Chocolatey
+choco install tesseract
+```
+
 Pastikan command ini tersedia:
 
 ```bash
 adb version
 python --version
 appium --version
+tesseract --version
 ```
 
 ## 3. Siapkan emulator/device
@@ -148,7 +164,6 @@ Kalau akun belum punya offer, script tidak bisa “membuat” offer. Script hany
 Dari root repo:
 
 ```bash
-cd encorepvt
 python -m venv .venv
 source .venv/bin/activate
 pip install -r services/device_automation/requirements.txt
@@ -157,7 +172,6 @@ pip install -r services/device_automation/requirements.txt
 Di Windows PowerShell:
 
 ```powershell
-cd encorepvt
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r services/device_automation/requirements.txt
